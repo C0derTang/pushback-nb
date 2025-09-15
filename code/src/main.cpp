@@ -1,4 +1,5 @@
 #include "main.h"
+#include "string"
 #include "lemlib/api.hpp"
 
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
@@ -14,6 +15,11 @@ lemlib::Drivetrain drivetrain(&lDrive, // left motor group
                               450, // drivetrain rpm is 360
                               2 // horizontal drift is 2 (for now)
 );
+
+pros::Motor intake(11, pros::MotorGearset::blue);
+pros::Motor indexer(19, pros::MotorGearset::green);
+pros::Motor roller(20, pros::MotorGearset::green);
+
 
 /*------------------------ odom + PID config ------------------------------------*/
 
@@ -75,8 +81,19 @@ lemlib::Chassis chassis(drivetrain, // drivetrain settings
                         &steer
 );
 
+/*-------------Custom motor functions-----------------*/
+void rollers(std::string mode){
+    int intk = -1, idx = -1, rlr = 0;
+    if (mode == "store") idx = 1;
+    else if (mode == "low") intk = 1;
+    else if (mode == "mid") rlr = -1;
+    else if (mode == "high") rlr = 1;
+    else intk = idx = 0;
 
-
+    intake.move_voltage(12000*intk);
+    indexer.move_voltage(12000*idx);
+    roller.move_voltage(12000*rlr);
+}
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -134,6 +151,7 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+    std::string mode = "stop";
     while (true){
         int leftY = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightX = sticks.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
@@ -141,7 +159,14 @@ void opcontrol() {
         // move the robot
         chassis.curvature(leftY, rightX);
 
+        if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) mode = "store";
+        else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) mode = "low";
+        else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) mode = "mid";
+        else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) mode = "high";
+        else mode = "stop";
+        rollers(mode);
+
         // delay to save resources
-        pros::delay(25);
+        pros::delay(10);
     }
 }
