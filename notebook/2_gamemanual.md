@@ -1,0 +1,2 @@
+# Game Manual
+## Tournament Scoring
