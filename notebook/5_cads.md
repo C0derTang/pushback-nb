@@ -65,9 +65,26 @@ Each design contributes unique insights toward developing the **final competitio
 
 ---
 
-## CAD 3 — [Name v1]
+## CAD 3 — Meng V1
 
-*(Repeat the same structure as above.)*
+
+| **Front View** | **Back View** |
+|:---------------:|:--------------:|
+| <img src="images/5_brandonfront2.png" alt="Meng v2 Front" width="300"> | <img src="images/5_brandonback2.png" alt="Meng v2 Back" width="300"> |
+
+| **Side View** | **Isometric View** |
+|:--------------:|:------------------:|
+| <img src="images/5_brandonside2.png" alt="Meng v2 Side" width="300"> | <img src="images/5_brandoniso2.png" alt="Meng v2 Isometric" width="300"> |
+
+### Specs
+| Parameter | Value |
+|------------|--------|
+| **Drivetrain RPM** | 450 RPM |
+| **Drivetrain Wheel Size** | 3.25" traction |
+| **Bot Type** | Hoard |
+| **Capacity** | 9-10 |
+| **Motors Used** | 7x11W blue, 2x5.5W |
+| **Intake Type** | Rubber Band Barrel |
 
 ---
 
