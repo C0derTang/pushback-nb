@@ -1,66 +1,78 @@
 #include "main.h"
 #include "liblvgl/llemu.hpp"
 #include "pros/adi.hpp"
+#include "pros/distance.hpp"
 #include "pros/misc.h"
+#include "pros/motors.h"
+#include "pros/optical.hpp"
+#include "pros/rtos.hpp"
+#include "pros/vision.hpp"
 #include "string"
 #include "lemlib/api.hpp"
 
 pros::Controller sticks(pros::E_CONTROLLER_MASTER);
 
 /*------------------------- drivetrain + motors ---------------------------------*/
-pros::MotorGroup lDrive({-13, -14, -15}, pros::MotorGearset::blue);
-pros::MotorGroup rDrive({17, 18, 19}, pros::MotorGearset::blue);
+pros::MotorGroup lDrive({-11, 12, -13}, pros::MotorGearset::blue);
+pros::MotorGroup rDrive({20, -19 , 18}, pros::MotorGearset::blue);
 
 lemlib::Drivetrain drivetrain(&lDrive, // left motor group
                               &rDrive, // right motor group
-                              9.567, // inch track width
+                              9.75, // inch track width
                               lemlib::Omniwheel::NEW_325, // wheel type
                               450, // drivetrain rpm is 360
                               2 // horizontal drift is 2 (for now)
 );
 
-pros::Motor intake(20, pros::MotorGearset::green);
-pros::Motor indexer(12, pros::MotorGearset::green);
+pros::Motor intake(-1, pros::MotorGearset::blue);
+pros::Motor indexer(-3, pros::MotorGearset::green);
 // SWITCH BACK
-pros::Motor roller(11, pros::MotorGearset::green);
+pros::Motor roller(2, pros::MotorGearset::green);
 
-pros::adi::DigitalOut tongue('a');
-pros::adi::DigitalOut hood('c');
+pros::adi::DigitalOut park('a');
+pros::adi::DigitalOut hood('b');
+pros::adi::DigitalOut tongue('c');
 
 /*------------------------ odom + PID config ------------------------------------*/
 
-/* example things
-pros::Rotation horizontal_encoder(20);
-pros::adi::Encoder vertical_encoder('C', 'D', true);
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_encoder, lemlib::Omniwheel::NEW_275, -5.75);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_encoder, lemlib::Omniwheel::NEW_275, -2.5);
-*/
-pros::IMU inertial(10);
+pros::Rotation horizontal_encoder(-10);
+pros::Rotation vertical_encoder(-9);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_encoder, lemlib::Omniwheel::NEW_2, 2.5);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_encoder, lemlib::Omniwheel::NEW_275, .032);
 
-lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel 1, set to null
+pros::IMU inertial(8);
+pros::Optical sorter(7);
+pros::Distance dp(6);
+
+std::string mode = "stop";
+bool blue = true;
+
+bool pval = false;
+
+lemlib::OdomSensors sensors(&vertical_tracking_wheel, // vertical tracking wheel 1, set to null
                             nullptr, // vertical tracking wheel 2, set to nullptr as we are using IMEs
-                            nullptr, // horizontal tracking wheel 1
+                            &horizontal_tracking_wheel, // horizontal tracking wheel 1
                             nullptr, // horizontal tracking wheel 2, set to nullptr as we don't have a second one
                             &inertial // inertial sensor
 );
 
-lemlib::ControllerSettings lateralPID(9, // proportional gain (kP)
+lemlib::ControllerSettings lateralPID(7, // proportional gain (kP)
                                     	0, // integral gain (kI)
-                                        7, // derivative gain (kD)
+                                        12, // derivative gain (kD)
                                         3, // anti windup
                                         1, // small error range, in inches
                                         100, // small error range timeout, in milliseconds
                                         3, // large error range, in inches
                                         500, // large error range timeout, in milliseconds
-                                        10 // maximum acceleration (slew)
+                                        0 // maximum acceleration (slew)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angularPID(4, // proportional gain (kP)
+lemlib::ControllerSettings angularPID(8.67, // proportional gain (kP)
                                         0, // integral gain (kI)
-                                        21, // derivative gain (kD)
+                                        40, // derivative gain (kD)
                                         3, // anti windup
-                                        1, // small error range, in degrees
+                                    1, // small error range, in degrees
                                     100, // small error range timeout, in milliseconds
                                         3, // large error range, in degrees
                                         500, // large error range timeout, in milliseconds
@@ -90,9 +102,9 @@ lemlib::Chassis chassis(drivetrain, // drivetrain settings
 
 /*-------------Custom motor functions-----------------*/
 void rollers(std::string mode){
-    int intk = -1, idx = -1, rlr = -1;
-    if (mode == "store") idx = rlr = 1;
-    else if (mode == "low") intk = 1;
+    int intk = 1, idx = 1, rlr = 1;
+    if (mode == "store") rlr = 1;
+    else if (mode == "low") intk = idx = rlr = -1;
     else if (mode == "mid") rlr = -1;
     else if (mode == "high") rlr = 1;
     else intk = idx = rlr = 0;
@@ -100,6 +112,7 @@ void rollers(std::string mode){
     intake.move_voltage(12000*intk);
     indexer.move_voltage(12000*idx);
     roller.move_voltage(12000*rlr);
+
 }
 
 /**
@@ -110,11 +123,47 @@ void rollers(std::string mode){
  */
 
 void initialize() {
-	chassis.calibrate();
-    chassis.setPose(0, 0, 0);
-    pros::lcd::initialize();
-}
+    pros::lcd::initialize(); // initialize brain screen
+    sorter.set_led_pwm(100);
+    chassis.calibrate(); // calibrate sensors
+    chassis.setPose(0,0,0); 
+    // print position to brain screen
+    pros::Task screen_task([&]() {
+        while (true) {
+	
+            pros::lcd::print(1, "X: %f", chassis.getPose().x); // x
+            pros::lcd::print(2, "Y: %f", chassis.getPose().y); // y
+            pros::lcd::print(3, "Theta: %f", chassis.getPose().theta); // heading
+            // delay to save resources
+            pros::delay(50);
+        }
+    });
 
+    pros::Task colorSort([&]() {
+        bool curblue = blue;
+        while (true) {
+            if(!pval){
+                double hue = sorter.get_hue();
+                //pros::lcd::print(4, "hue: %f", hue); // heading
+                if (hue < 30 || hue > 170){
+                    curblue = (hue > 170);
+                }
+                if(pros::c::competition_is_autonomous()==false){
+                    if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) mode = "store";
+                    else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) mode = "low";
+                    else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) mode = "mid";
+                    else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) mode = "high";
+                    else mode = "stop";
+                }
+                if (mode == "high" || mode == "mid") mode = (curblue == blue) ? mode : (mode == "high" ? "mid" : "high");
+                rollers(mode);
+            }
+            pros::delay(30);
+
+        }
+    });
+  //60 neutral 170 blue 20 red
+}
 /**
  * Runs while the robot is in the disabled state of Field Management System or
  * the VEX Competition Switch, following either autonomous or opcontrol. When
@@ -145,7 +194,8 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
-    chassis.moveToPoint(0, 12, 10000);
+    //chassis.moveToPoint(0, 48, 10000);
+    //chassis.moveToPose(0, 48,90, 10000);
 }
 
 /**
@@ -162,8 +212,7 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-    std::string mode = "stop";
-    bool val = false;
+    bool tval = false;
     while (true){
         int leftY = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightX = sticks.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
@@ -171,20 +220,34 @@ void opcontrol() {
         // move the robot
         chassis.curvature(leftY, rightX);
 
-        if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) mode = "store";
-        else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) mode = "low";
-        else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) mode = "mid";
-        else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) mode = "high";
-        else mode = "stop";
-
-        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) tongue.set_value(false);
-        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) tongue.set_value(true);
+        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1) || sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2) ) hood.set_value(false);
+        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) hood.set_value(true);
 
 
-        rollers(mode);
 
-        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) val = !val;
-        tongue.set_value(val);
+        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) pval = !pval;
+        if (pval){
+            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
+            intake.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+
+            while (dp.get_distance() > 80){
+                intake.move_voltage(-6000);
+                roller.move_voltage(-12000);
+                indexer.move_voltage(-12000);
+
+                pros::delay(10);
+            }
+            pros::delay(200);
+            intake.move_voltage(0);
+            park.set_value(pval);
+            pros::delay(50);
+        }else {
+            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+            intake.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+        }
+
+        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))tval = !tval;
+        tongue.set_value(tval);
         // delay to save resources
         pros::delay(10);
     }
