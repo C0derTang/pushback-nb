@@ -48,6 +48,7 @@ std::string mode = "stop";
 bool blue = true;
 
 bool pval = false;
+int velo = 12000;
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, // vertical tracking wheel 1, set to null
                             nullptr, // vertical tracking wheel 2, set to nullptr as we are using IMEs
@@ -68,7 +69,7 @@ lemlib::ControllerSettings lateralPID(7, // proportional gain (kP)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angularPID(8.67, // proportional gain (kP)
+lemlib::ControllerSettings angularPID(7, // proportional gain (kP)
                                         0, // integral gain (kI)
                                         40, // derivative gain (kD)
                                         3, // anti windup
@@ -101,7 +102,7 @@ lemlib::Chassis chassis(drivetrain, // drivetrain settings
 );
 
 /*-------------Custom motor functions-----------------*/
-void rollers(std::string mode){
+void rollers(std::string mode, int v = 12000){
     int intk = 1, idx = 1, rlr = 1;
     if (mode == "store") rlr = 1;
     else if (mode == "low") intk = idx = rlr = -1;
@@ -111,7 +112,7 @@ void rollers(std::string mode){
 
     intake.move_voltage(12000*intk);
     indexer.move_voltage(12000*idx);
-    roller.move_voltage(12000*rlr);
+    roller.move_voltage(v*rlr);
 
 }
 
@@ -141,10 +142,10 @@ void initialize() {
 
     pros::Task colorSort([&]() {
         bool curblue = blue;
+        int frame = 0;
         while (true) {
             if(!pval){
                 double hue = sorter.get_hue();
-                //pros::lcd::print(4, "hue: %f", hue); // heading
                 if (hue < 30 || hue > 170){
                     curblue = (hue > 170);
                 }
@@ -154,12 +155,14 @@ void initialize() {
                     else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) mode = "mid";
                     else if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) mode = "high";
                     else mode = "stop";
-                }
-                if (mode == "high" || mode == "mid") mode = (curblue == blue) ? mode : (mode == "high" ? "mid" : "high");
-                rollers(mode);
-            }
-            pros::delay(30);
 
+                }
+            if (mode != "high" && mode != "mid") frame = 0; else ++frame;
+                if (mode == "high" || mode == "mid") mode = (curblue == blue) ? mode : (mode == "high" ? "mid" : "high");
+            
+            if (frame < 10 && (mode == "high" || mode == "mid")) rollers("low", 9000); else rollers(mode, velo);
+            pros::delay(30);
+            }
         }
     });
   //60 neutral 170 blue 20 red
@@ -194,8 +197,38 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
-    //chassis.moveToPoint(0, 48, 10000);
-    //chassis.moveToPose(0, 48,90, 10000);
+    velo = 12000;
+    hood.set_value(true);
+    mode="store";
+    chassis.moveToPose(-8, 24,-27, 1800, {.lead=.2, .maxSpeed=60});
+    pros::delay(900);
+    tongue.set_value(true);
+    chassis.moveToPose(3, 39,-135, 2000, {.forwards=false, .lead=.4});
+    pros::delay(1000);
+    tongue.set_value(false);
+    pros::delay(600);
+    hood.set_value(false);
+    velo=5000;
+    mode="mid";
+    pros::delay(2000);
+    mode="stop";
+    velo=12000;
+    chassis.moveToPose(-26, 40,-90, 2500, {.lead=.6, .maxSpeed=60});
+    hood.set_value(true);
+    mode="store";
+    pros::delay(1600);
+    tongue.set_value(true);
+    chassis.moveToPose(-10, 40,-90, 1000, {.forwards=false, .lead=.2, .maxSpeed=110, .earlyExitRange=2});
+    pros::delay(1000);
+    tongue.set_value(false);
+    chassis.moveToPose(-36, 1,180, 2000, {.lead=-.3, .maxSpeed=80});
+    pros::delay(1900);
+    tongue.set_value(true);
+    chassis.moveToPose(-36, -12,180, 2000, {.lead=-.3, .maxSpeed=80}, false);
+    pros::delay(200);
+    chassis.moveToPose(-36, 16,180, 2000, {.forwards=false, .lead=-.3}, false);
+    hood.set_value(false);
+    mode="high";
 }
 
 /**
@@ -212,6 +245,8 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+        velo = 12000;
+
     bool tval = false;
     while (true){
         int leftY = sticks.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
@@ -222,8 +257,6 @@ void opcontrol() {
 
         if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1) || sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2) ) hood.set_value(false);
         if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) hood.set_value(true);
-
-
 
         if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) pval = !pval;
         if (pval){
