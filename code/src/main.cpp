@@ -157,12 +157,13 @@ void initialize() {
                     else mode = "stop";
 
                 }
-            if (mode != "high" && mode != "mid") frame = 0; else ++frame;
-                if (mode == "high" || mode == "mid") mode = (curblue == blue) ? mode : (mode == "high" ? "mid" : "high");
             
-            if (frame < 10 && (mode == "high" || mode == "mid")) rollers("low", 9000); else rollers(mode, velo);
-            pros::delay(30);
+                if (mode != "high" && mode != "mid") frame = 0; else ++frame;
+                if (frame < 7 && (mode == "high" || mode == "mid")) rollers("low", 9000);
+                else if (mode == "high" || mode == "mid") rollers((curblue == blue) ? mode : (mode == "high" ? "mid" : "high"), velo);
+                else rollers(mode);
             }
+            pros::delay(30);
         }
     });
   //60 neutral 170 blue 20 red
@@ -200,36 +201,36 @@ void autonomous() {
     velo = 12000;
     hood.set_value(true);
     mode="store";
-    chassis.moveToPose(-8, 24,-27, 1800, {.lead=.2, .maxSpeed=60});
-    pros::delay(900);
-    tongue.set_value(true);
-    chassis.moveToPose(3, 39,-135, 2000, {.forwards=false, .lead=.4});
+    chassis.moveToPose(-9, 24.2,-27, 1900, {.lead=.2, .maxSpeed=60});
     pros::delay(1000);
-    tongue.set_value(false);
-    pros::delay(600);
+    tongue.set_value(true);
+    chassis.moveToPose(4, 37.5,-135, 1800, {.forwards=false, .lead=.4});
+    pros::delay(1000);
     hood.set_value(false);
-    velo=5000;
+    velo=5670;
     mode="mid";
-    pros::delay(2000);
+    pros::delay(2300);
     mode="stop";
     velo=12000;
-    chassis.moveToPose(-26, 40,-90, 2500, {.lead=.6, .maxSpeed=60});
     hood.set_value(true);
     mode="store";
-    pros::delay(1600);
-    tongue.set_value(true);
-    chassis.moveToPose(-10, 40,-90, 1000, {.forwards=false, .lead=.2, .maxSpeed=110, .earlyExitRange=2});
-    pros::delay(1000);
-    tongue.set_value(false);
-    chassis.moveToPose(-36, 1,180, 2000, {.lead=-.3, .maxSpeed=80});
-    pros::delay(1900);
-    tongue.set_value(true);
-    chassis.moveToPose(-36, -12,180, 2000, {.lead=-.3, .maxSpeed=80}, false);
-    pros::delay(200);
-    chassis.moveToPose(-36, 16,180, 2000, {.forwards=false, .lead=-.3}, false);
+    chassis.moveToPose(-38, 5,-180, 3000, {.lead=-.3, .maxSpeed=80, .earlyExitRange=2});
+    chassis.moveToPose(-34.2, -7.85,180, 1600, {.lead=-.3, .maxSpeed=80}, false);
+    pros::delay(400);
+    chassis.moveToPose(-34, 20,180, 1400, {.forwards=false, .lead=-.3, .maxSpeed=100, });
+    pros::delay(800);
     hood.set_value(false);
     mode="high";
+    pros::delay(1900);
+    mode="stop";
+    hood.set_value(true);
+    mode="low";
+    chassis.moveToPose(-28, 6, 180, 500, {.lead=-.3, .earlyExitRange=5});
+    chassis.moveToPose(-20, 32,180, 1400, {.forwards=false, .lead=-.8});
+    chassis.moveToPose(-20, 34,180, 1400, {.forwards=false, .lead=-.8, .maxSpeed=60});
+
 }
+//-21.5, 26.5
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -253,12 +254,12 @@ void opcontrol() {
         int rightX = sticks.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
         // move the robot
-        chassis.curvature(leftY, rightX);
+        chassis.arcade(leftY, rightX);
 
-        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1) || sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2) ) hood.set_value(false);
-        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) hood.set_value(true);
+        if(sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L1) || sticks.get_digital(pros::E_CONTROLLER_DIGITAL_L2) ) hood.set_value(false);
+        else hood.set_value(true);
 
-        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) pval = !pval;
+        if(sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A) && sticks.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) pval = !pval;
         if (pval){
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
             intake.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
