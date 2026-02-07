@@ -161,7 +161,7 @@ void initialize() {
             
                 if (mode != "high" && mode != "mid") frame = 0; else ++frame;
                 if (frame < 7 && (mode == "high" || mode == "mid")) rollers("low", 9000);
-                else if (mode == "high" || mode == "mid") rollers((curblue == curblue) ? mode : (mode == "high" ? "mid" : "high"), velo);
+                else if (mode == "high" || mode == "mid") rollers((blue == curblue) ? mode : (mode == "high" ? "mid" : "high"), velo);
                 else rollers(mode);
             }
             pros::delay(30);
@@ -199,12 +199,7 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
-    //chassis.moveToPoint(0, -15, 3000, {.forwards=false}, false);
-    chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
-    intake.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    park.set_value(true);
-    pros::delay(100000);
-    /*
+    
     velo = 12000;
     hood.set_value(true);
     mode="store";

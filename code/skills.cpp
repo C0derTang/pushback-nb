@@ -18,13 +18,13 @@ pros::MotorGroup rDrive({20, -19 , 18}, pros::MotorGearset::blue);
 
 lemlib::Drivetrain drivetrain(&lDrive, // left motor group
                               &rDrive, // right motor group
-                              9.6, // inch track width
+                              9.75, // inch track width
                               lemlib::Omniwheel::NEW_325, // wheel type
                               450, // drivetrain rpm is 360
                               2 // horizontal drift is 2 (for now)
 );
 
-pros::Motor intake(1, pros::MotorGearset::blue);
+pros::Motor intake(-1, pros::MotorGearset::blue);
 pros::Motor indexer(-3, pros::MotorGearset::green);
 // SWITCH BACK
 pros::Motor roller(2, pros::MotorGearset::green);
@@ -37,7 +37,7 @@ pros::adi::DigitalOut tongue('c');
 
 pros::Rotation horizontal_encoder(-10);
 pros::Rotation vertical_encoder(-9);
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_encoder, lemlib::Omniwheel::NEW_2, 2.267);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_encoder, lemlib::Omniwheel::NEW_2, 2.5);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_encoder, lemlib::Omniwheel::NEW_275, .032);
 
 pros::IMU inertial(8);
@@ -135,7 +135,6 @@ void initialize() {
             pros::lcd::print(1, "X: %f", chassis.getPose().x); // x
             pros::lcd::print(2, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(3, "Theta: %f", chassis.getPose().theta); // heading
-            pros::lcd::print(4, "Hue: %f", sorter.get_hue()); // heading
             // delay to save resources
             pros::delay(50);
         }
@@ -199,88 +198,41 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
-    //chassis.moveToPoint(0, -15, 3000, {.forwards=false}, false);
-    chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
-    intake.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    park.set_value(true);
-    pros::delay(100000);
-    /*
-    velo = 12000;
-    hood.set_value(true);
-    mode="store";
-    chassis.moveToPose(-9, 24.2,-27, 1900, {.lead=.2, .maxSpeed=60});
-    pros::delay(1000);
-    tongue.set_value(true);
-    chassis.moveToPose(4, 37.5,-135, 1800, {.forwards=false, .lead=.4});
-    pros::delay(1000);
-    hood.set_value(false);
-    velo=5670;
-    mode="mid";
-    pros::delay(2100);
-    mode="stop";
-    velo=12000;
-    hood.set_value(true);
-    mode="store";
-    chassis.moveToPose(-38, 5,-180, 2300, {.lead=-.3, .maxSpeed=80, .earlyExitRange=2});
-    chassis.moveToPose(-34, -8.5,180, 1600, {.lead=-.3, .maxSpeed=80}, false);
-    pros::delay(400);
-    chassis.moveToPose(-34, 19.41,180, 1400, {.forwards=false, .lead=-.3, .maxSpeed=100, });
-    pros::delay(900);
-    hood.set_value(false);
-    mode="high";
-    pros::delay(3500);
-    mode="stop";
-    //chassis.setPose(0,0,180);
-    hood.set_value(true);
-    mode="low";
-    chassis.moveToPose(-27, 6, 180, 500, {.lead=-.3, .earlyExitRange=5});
-    chassis.moveToPose(-16, 32,180, 1400, {.forwards=false, .lead=-.9, .earlyExitRange=5});
-    chassis.moveToPose(-19, 29,180, 1400, {.forwards=false, .lead=-.8, .maxSpeed=60});
-    /*
     chassis.setPose(0,0,-90);
     velo = 12000;
     hood.set_value(true);
 
-    chassis.moveToPose(-34, 12,-90, 1900, {.lead=.2, .maxSpeed=70});
-    chassis.turnToHeading(180, 900, {.maxSpeed=70}, false);
+    chassis.moveToPose(-36, 26,-90, 1900, {.lead=.2, .maxSpeed=100});
+    chassis.turnToHeading(180, 900, {}, false);
     tongue.set_value(true);
     pros::delay(400);
     mode="store";
-    chassis.moveToPose(-33, -9.4,180, 1800, {.lead = .2, .maxSpeed=70}, false);
+    chassis.moveToPose(-36, -6.7,180, 1800, {.lead = .2, .maxSpeed=100}, false);
     pros::delay(1000);
-    chassis.moveToPose(-33, 0,180, 1800, {.forwards=false, .lead = .2, .maxSpeed=70}, false);
-
-    chassis.moveToPose(-43, 24,180, 2000, {.forwards=false, .lead = .2, .maxSpeed=700});
-    chassis.moveToPose(-43, 85,180, 2000, {.forwards=false, .lead = .2, .maxSpeed=100});
+    chassis.moveToPose(-45, 24,180, 2000, {.forwards=false, .lead = .2, .maxSpeed=100});
+    chassis.moveToPose(-45, 84,180, 2000, {.forwards=false, .lead = .2, .maxSpeed=100});
     tongue.set_value(false);
-     chassis.moveToPose(-40, 85,90, 2000, {.lead = .2, .maxSpeed=100});
-    chassis.moveToPose(-29, 75,0, 2000, {.forwards=false, .lead = .2, .maxSpeed=100}, false);
+    chassis.moveToPose(-36, 80,0, 2000, {.forwards=false, .lead = .2, .maxSpeed=100}, false);
     mode="high";
     hood.set_value(false);
-    pros::delay(3000);
-
-
+    pros::delay(4000);
+/*
     mode="store";
-    hood.set_value(true);
+    hood.set_value(false);
     tongue.set_value(true);
-    pros::delay(400);
-    chassis.moveToPose(-28.67, 105.6,0, 2000, {.lead = .2, .maxSpeed=100}, false);
+    chassis.moveToPose(-36, 100,0, 2000, {.lead = .2, .maxSpeed=100}, false);
     pros::delay(1000);
     
-    chassis.moveToPose(-29, 75,0, 2000, {.forwards=false, .lead = .2, .maxSpeed=100}, false);
-    chassis.moveToPose(-29, 75.5,0, 500, {.forwards=false, .lead = .2, .maxSpeed=100}, false);
+    chassis.moveToPose(-36, 80,0, 2000, {.forwards=false, .lead = .2, .maxSpeed=100}, false);
     mode="high";
     hood.set_value(false);
-    pros::delay(3000);
+    pros::delay(4000);
 
-
-    chassis.moveToPose(-10, 76.7, 180, 2000, {.lead = .8, .maxSpeed=100});
-    chassis.moveToPose(-10, 12, 180, 2000, {.lead = .8, .maxSpeed=100});
-    tongue.set_value(false);
-    chassis.moveToPose(20, 12,180, 2000, { .lead = .8});
-    chassis.moveToPose(20, -20,180, 2000, { .lead = .8, .minSpeed=120});
+    chassis.moveToPose(48, 84,90, 2000, {.lead = .2, .maxSpeed=100});
+    chassis.turnToHeading(0, 1000);
 
 */
+
 }
 //-21.5, 26.5
 
@@ -323,7 +275,7 @@ void opcontrol() {
 
                 pros::delay(10);
             }
-            pros::delay(300);
+            pros::delay(200);
             intake.move_voltage(0);
             park.set_value(pval);
             pros::delay(50);

@@ -1,7 +1,7 @@
 {
   "py/object": "pros.conductor.project.Project",
   "py/state": {
-    "project_name": "blue goon cave",
+    "project_name": "bitchskills",
     "target": "v5",
     "templates": {
       "LemLib": {
@@ -635,7 +635,9 @@
       }
     },
     "upload_options": {
-      "slot": 3
+      "slot": 4,
+      "icon": "pizza",
+      "description": "skibidi sigma"
     },
     "use_early_access": false
   }
